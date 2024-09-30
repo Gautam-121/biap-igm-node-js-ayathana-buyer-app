@@ -2,9 +2,10 @@ import { logger } from "./shared/logger";
 import createServer from "./app";
 import dbConnect from "./database/mongooseConnector";
 
-const port = process.env.PORT || 6969;
+const port = process.env.PORT || 8989;
 
 const app = createServer();
+console.log("Enter igm")
 
 try {
   //Setup connection to the database
