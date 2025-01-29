@@ -9,7 +9,7 @@ import { IssueRequest } from "../interfaces/bpp_issue";
 const onIssue = async (messageId: string) => {
   const apiCall = new HttpRequest(
     process.env.PROTOCOL_BASE_URL,
-    PROTOCOL_API_URLS.ON_ISSUE + "?messageId=" + messageId,
+    PROTOCOL_API_URLS.RESPONSE + "?messageId=" + messageId + "&requestType=" + "on_issue",
     "get"
   );
 
@@ -23,6 +23,7 @@ const onIssue = async (messageId: string) => {
  * @returns
  */
 const protocolIssue = async (data: IssueRequest) => {
+  console.log("Enter to call protocol issue Apis")
   const apiCall = new HttpRequest(
     process.env.PROTOCOL_BASE_URL,
     PROTOCOL_API_URLS.ISSUE,
@@ -41,6 +42,8 @@ const protocolIssue = async (data: IssueRequest) => {
  * @returns
  */
 const protocolIssueStatus = async (data: any) => {
+
+  console.log("issueStatus request" , data)
   const apiCall = new HttpRequest(
     process.env.PROTOCOL_BASE_URL,
     PROTOCOL_API_URLS.ISSUE_STATUS,
@@ -61,7 +64,7 @@ const protocolIssueStatus = async (data: any) => {
 const onIssueStatus = async (messageId: string) => {
   const apiCall = new HttpRequest(
     process.env.PROTOCOL_BASE_URL,
-    PROTOCOL_API_URLS.ON_ISSUE_STATUS + "?messageId=" + messageId,
+    PROTOCOL_API_URLS.RESPONSE + "?messageId=" + messageId + "&requestType=" + "on_issue_status",
     "get"
   );
 
@@ -76,7 +79,7 @@ const onIssueStatus = async (messageId: string) => {
 const onIssueOrder = async (messageId: string) => {
   const apiCall = new HttpRequest(
     process.env.PROTOCOL_BASE_URL,
-    PROTOCOL_API_URLS.ON_ISSUE + "?messageId=" + messageId,
+    PROTOCOL_API_URLS.RESPONSE + "?messageId=" + messageId + "&requestType=" + "on_issue",
     "get"
   );
 
@@ -91,7 +94,7 @@ const onIssueOrder = async (messageId: string) => {
 const onIssue_status = async (messageId: any) => {
   const apiCall = new HttpRequest(
     process.env.PROTOCOL_BASE_URL,
-    PROTOCOL_API_URLS.ON_ISSUE_STATUS + "?messageId=" + messageId,
+    PROTOCOL_API_URLS.RESPONSE + "?messageId=" + messageId + "&requestType=" + "on_issue_status",
     "get"
   );
 

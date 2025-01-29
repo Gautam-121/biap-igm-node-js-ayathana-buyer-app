@@ -9,6 +9,7 @@ export interface Context {
   transaction_id: string;
   city: string;
   state: string;
+  domain:string
 }
 
 export interface Message {
@@ -34,6 +35,7 @@ export interface IssueProps {
   status: string;
   rating?: string;
   issue_type?: string;
+  short_desc?: string
 }
 
 export interface ComplainantInfo {
@@ -211,6 +213,10 @@ export interface Quantity {
 export interface UserDetails {
   decodedToken: DecodedToken;
   token: string;
+}
+
+export interface OrderId {
+  orderId: string;
 }
 
 export interface DecodedToken {

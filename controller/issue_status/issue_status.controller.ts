@@ -11,16 +11,49 @@ class IssueStatusController {
    * @param {*} res    HTTP response object
    * @param {*} next   Callback argument to the middleware function
    */
-  issueStatus(req: Request, res: Response, next: NextFunction) {
-    const { body: issue } = req;
-    issueStatusService
-      .issue_status(issue)
-      .then((response) => {
-        res.json({ ...response });
-      })
-      .catch((err) => {
-        next(err);
-      });
+  async issueStatus(req: Request, res: Response, _: NextFunction) {
+    try {
+      const { body: issue } = req;
+  
+      if (!issue?.message?.issue_id) {
+        throw new BadRequestParameterError("Issue_id is required");
+      }
+  
+      const response = await issueStatusService.issue_status(issue);
+  
+      res.json({ ...response });
+    } catch (error:any) {
+      console.log("ERROR STACK" , error.stack)
+      console.log("ERROR MESSAGE" , error.message)
+      if(error instanceof BadRequestParameterError) {
+        res.status(400).json({
+          status: 400,
+          error:{
+            name: "BAD_REQUEST_PARAMETER_ERROR",
+            message: error.message
+          }
+        })
+        return;
+      }
+      if (error.response && error.response.status === 404) {
+        // Handle errors from the order API
+        res.status(404).json({
+          status: 404,
+          error: {
+            name: "NO_RECORD_FOUND",
+            message: `Order not found with orderId: ${req.params.orderId}`,
+          },
+        });
+      } else {
+        res.status(error?.response?.status || 500).json({
+          status: error?.response?.status || 500,
+          error: {
+            name: error?.response?.name || "INTERNAL_ERROR",
+            message: error?.response?.message || "Internal server error",
+          },
+        });
+      }
+    }
   }
 
   /**

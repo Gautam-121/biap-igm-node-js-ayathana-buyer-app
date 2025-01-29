@@ -1,3 +1,4 @@
+import BadRequestParameterError from "../lib/error/bad-request-parameter-error";
 import IssueModel from "../database/issue.model";
 
 /**
@@ -25,11 +26,7 @@ const getIssueByTransactionId = async (transactionId: string) => {
   });
 
   if (!(issue || issue.length)) {
-    return {
-      status: 404,
-      name: "NO_RECORD_FOUND_ERROR",
-      message: "Record not found",
-    };
+    throw new BadRequestParameterError("Record not found")
   } else return issue?.[0];
 };
 

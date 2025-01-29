@@ -12,6 +12,7 @@ import {
   IssueProps,
   IssueRequest,
   UserDetails,
+  OrderId
 } from "../../interfaces/issue";
 import BugzillaService from "../../controller/bugzilla/bugzilla.service";
 import { onIssueOrder } from "../../utils/protocolApis";
@@ -19,6 +20,7 @@ import {
   addOrUpdateIssueWithtransactionId,
   getIssueByTransactionId,
 } from "../../utils/dbservice";
+import BadRequestParameterError from "../../lib/error/bad-request-parameter-error";
 
 const bppIssueService = new BppIssueService();
 const bugzillaService = new BugzillaService();
@@ -82,9 +84,9 @@ class IssueService {
 
   async addComplainantAction(issue: IssueProps) {
     const date = new Date();
-    const initialComplainantAction = {
-      complainant_action: "OPEN",
-      short_desc: "Complaint created",
+    const createCompainAction = {
+      complainant_action: issue.rating ? "CLOSED" : issue.issue_type === "GRIEVANCE" ? "ESCALATE" : "OPEN",
+      short_desc: issue?.rating ? "Complaint closed" : issue.issue_type === "GRIEVANCE" ? (issue.short_desc || "Complaint Escalate") : "Complaint Created" ,
       updated_at: date,
       updated_by: {
         org: {
@@ -92,15 +94,19 @@ class IssueService {
         },
         contact: {
           phone: "6239083807",
-          email: "Rishabhnand.singh@ondc.org",
+          email: "support@xircular.co.in",
         },
         person: {
-          name: "Rishabhnand Singh",
+          name: "Apprikart Digital Solution Pvt Ltd",
         },
       },
     };
-    if (!issue?.issue_actions?.complainant_actions?.length) {
-      issue?.issue_actions?.complainant_actions.push(initialComplainantAction);
+
+    const esclateExist = issue?.issue_actions?.complainant_actions.find(complain=> complain.complainant_action === "ESCALATE")
+    if(issue.issue_type === "GRIEVANCE" && esclateExist){
+      esclateExist.short_desc = issue.short_desc || "Complaint Escalate"
+    }else{
+      issue?.issue_actions?.complainant_actions.push(createCompainAction);
     }
 
     const issueId = uuidv4();
@@ -109,18 +115,18 @@ class IssueService {
       issueId: issueId,
     };
 
-    return issueRequests;
+    return (issue.rating || issue.issue_type) ? issue : issueRequests;
   }
 
   /**
    * Issue
    * @param {Object} issueRequest
    */
-  async createIssue(issueRequest: IssueRequest, userDetails: UserDetails) {
+  async createIssue(issueRequest: IssueRequest, userDetails: UserDetails , orderId:OrderId) {
     try {
       const { context: requestContext, message }: IssueRequest = issueRequest;
 
-      const issue: IssueProps = message.issue;
+      let issue: IssueProps = message.issue;
 
       const contextFactory = new ContextFactory();
       const context = contextFactory.create({
@@ -132,21 +138,43 @@ class IssueService {
         state: requestContext?.state,
       });
 
-      if (message?.issue?.rating || message?.issue?.issue_type) {
-        const existingIssue: IssueProps = await getIssueByTransactionId(
-          requestContext?.transaction_id
-        );
+      const existingIssue: IssueProps = await getIssueByTransactionId(
+        requestContext?.transaction_id
+      );
+
+      if(existingIssue && !(message?.issue?.rating || message?.issue?.issue_type)){
+        throw new BadRequestParameterError(`Issue already exist for orderId:${orderId}`)
+      }
+
+      if (existingIssue && (message?.issue?.rating || message?.issue?.issue_type)) {
+
+        if(existingIssue.issue_status === "Close"){
+          throw new BadRequestParameterError(`Ticket is already closed`)
+        }
+
+        if(message?.issue?.rating && ["THUMBS-UP" , "THUMBS-DOWN"].indexOf(message?.issue?.rating) == -1){
+          throw new BadRequestParameterError(`Rating should be THUMBS-UP ,THUMBS-DOWN`)
+        }
+        else if(message?.issue?.issue_type && (typeof message?.issue?.issue_type !== "string" || message?.issue?.issue_type !== "GRIEVANCE") ){
+          throw new BadRequestParameterError(`issue_type must be GRIEVANCE`)
+        }
+
         const context = contextFactory.create({
           action: PROTOCOL_CONTEXT.ISSUE,
           transactionId: requestContext?.transaction_id,
-          bppId: requestContext?.bpp_id,
+          bppId: existingIssue?.bppId,
           bpp_uri: existingIssue?.bpp_uri,
           city: requestContext?.city,
           state: requestContext?.state,
         });
+
+        issue.issue_actions.complainant_actions = existingIssue.issue_actions.complainant_actions
+
+        issue = await this.addComplainantAction(issue);
+
         const bppResponse: any = await bppIssueService.closeOrEscalateIssue(
           context,
-          issue
+          {...issue , id: existingIssue?.issueId }
         );
 
         if (message?.issue?.issue_type === "GRIEVANCE") {
@@ -174,7 +202,8 @@ class IssueService {
 
         return bppResponse;
       }
-      const imageUri: string[] = [];
+
+      const imageUri: string[] = ["https://objectstore.e2enetworks.net/xplore/1733984621003-3812d367db6423fb.png"];
 
       const ImageBaseURL =
         process.env.VOLUME_IMAGES_BASE_URL ||
@@ -183,7 +212,8 @@ class IssueService {
       await issue?.description?.images?.map(async (item: string) => {
         const images = await this.uploadImage(item);
         const imageLink = ImageBaseURL + images;
-        imageUri.push(imageLink);
+        console.log(imageLink)
+        imageUri.push("https://objectstore.e2enetworks.net/xplore/1733984621003-3812d367db6423fb.png");
       });
 
       issue?.description?.images?.splice(
@@ -252,6 +282,10 @@ class IssueService {
 
   async getIssuesList(user: UserDetails, params: IParamProps) {
     try {
+
+      params.limit = params.limit || 5,
+      params.pageNumber = params.pageNumber || 1
+
       const { issues, totalCount } = await this.findIssues(user, params);
       if (!issues.length) {
         return {

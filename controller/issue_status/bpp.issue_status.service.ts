@@ -18,6 +18,7 @@ class BppIssueStatusService {
 
       return { context: context, message: response.message };
     } catch (err) {
+      console.log("Enter the issue" , err)
       throw err;
     }
   }

@@ -9,6 +9,7 @@ import {
 } from "../../utils/dbservice";
 import { IssueProps, RespondentActions } from "../../interfaces/issue";
 import BugzillaService from "../../controller/bugzilla/bugzilla.service";
+import BadRequestParameterError from "../../lib/error/bad-request-parameter-error";
 
 const bppIssueStatusService = new BppIssueStatusService();
 const bugzillaService = new BugzillaService();
@@ -18,12 +19,8 @@ class IssueStatusService {
       issueId: issueId,
     });
 
-    if (!(issue || issue.length))
-      return {
-        status: 404,
-        name: "NO_RECORD_FOUND_ERROR",
-        message: "Record not found",
-      };
+    if (!issue || issue.length == 0)
+      throw new BadRequestParameterError("Record not found")
     else return issue;
   }
 
@@ -33,15 +30,21 @@ class IssueStatusService {
    */
   async issue_status(order: any) {
     try {
-      const { context: requestContext, message } = order;
+      const { message } = order;
 
       const issueDetails = await this.getIssueByIssueId(message?.issue_id);
+
+      if(issueDetails[0]?.issue_status === "Close"){
+        throw new BadRequestParameterError("Issue is already close")
+      }
+
+      console.log("issueDetails" , issueDetails)
 
       const contextFactory = new ContextFactory();
       const context = contextFactory.create({
         action: PROTOCOL_CONTEXT.ISSUE_STATUS,
-        transactionId: requestContext?.transaction_id,
-        bppId: requestContext?.bpp_id,
+        transactionId: issueDetails[0]?.transaction_id,
+        bppId: issueDetails[0]?.bppId,
         bpp_uri: issueDetails?.[0]?.bpp_uri,
         cityCode: issueDetails.city,
       });
@@ -99,6 +102,7 @@ class IssueStatusService {
             issue.issue_actions
           );
         }
+        console.log(protocolSupportResponse)
         protocolSupportResponse[0].message.issue.updated_at = protocolSupportResponse?.[0].context.timestamp;
         return protocolSupportResponse?.[0];
       } else {
